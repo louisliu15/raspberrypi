@@ -26,15 +26,15 @@
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
-                <li class="active"><a href="{% url 'web:home' %}">Home</a></li>
-                <li><a href="#">Device</a></li>
-                <li><a href="#">Message</a></li>
-                <li><a href="#">Upload</a></li>
-                <li><a href="#">Download</a></li>
+                <li name="home"><a name="home" href="{% url 'web:home' %}">Home</a></li>
+                {% if request.user.is_authenticated %}
+                    <li name="device"><a class="active" href="{% url 'web:device' user.id %}">Device</a></li>
+                    <li name="message"><a href="{% url 'web:sendMsg' user.id %}">Message</a></li>
+                    <li name="upload"><a href="#">Upload</a></li>
+                    <li name="download"><a href="#">Download</a></li>
+                {% endif %}
             </ul>
             <ul class="nav navbar-nav navbar-right">
-{#                <li><a href="{% url 'web:login' %}">Login</a></li>#}
-{#                <li><a href="{% url 'web:register' %}">Register</a></li>#}
                 {% if request.user.is_authenticated %}
                     <li><a class="navbar-brand">Welcome {{ request.user.username }}</a></li>
                     <li><a name="logout" href="{% url 'web:logout' %}">Logout</a></li>
@@ -47,6 +47,10 @@
     </div>
 </nav>
 <div class="container">{% block body-block %}{% endblock %}</div>
-
+<script>
+    var path = "{{ request.path }}";
+    var name = path.split('/')[2];
+    $("li[name='" + name + "']").attr("class", "active");
+</script>
 </body>
 </html>

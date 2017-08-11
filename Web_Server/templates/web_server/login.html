@@ -2,6 +2,9 @@
 {% load staticfiles %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/siginin.css' %}">{% endblock %}
 {% block body-block %}
+    {% if error %}
+        <div class="alert alert-warning">{{ error_message }}</div>
+    {% endif %}
     <form class="form-signin" method="post" action="{% url 'web:login' %}">
         <h2 class="form-signin-heading">Please sign in</h2>
         {% csrf_token %}

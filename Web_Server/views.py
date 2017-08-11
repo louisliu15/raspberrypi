@@ -1,44 +1,19 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-import socket, os
+import socket, os, json
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 
-from Web_Server.forms import LoginForm, RegisterForm
+from .forms import LoginForm, RegisterForm
+from .models import Ruser, Device
 
 
 # Create your views here.
 # send and receive message with device
 def home(request):
     return render(request, 'web_server/home.html')
-
-
-def user_login(request):
-    if request.method == 'POST':
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            username = form.cleaned_data['username']
-            password = form.cleaned_data['password']
-            user = authenticate(username=username, password=password)
-            if user:
-                if user.is_active:
-                    login(request, user)
-                    return HttpResponseRedirect(reverse('web:home'))
-                else:
-                    return HttpResponse('Your account is disabled.')
-            else:
-                return HttpResponse('Invalid login information.')
-    else:
-        form = LoginForm()
-        return render(request, 'web_server/login.html', {'form': form})
-
-
-@login_required
-def user_logout(request):
-    logout(request)
-    return HttpResponseRedirect(reverse(('web:home')))
 
 
 def register(request):
@@ -57,21 +32,80 @@ def register(request):
         return render(request, 'web_server/register.html', {'form': form})
 
 
-def send_message(request):
-    response = HttpResponse()
-    conn = socket.socket()
-    conn.connect(("10.204.46.92", 8000))
-    # establish connection
-    conn.sendall(bytes("M", encoding="utf-8"))
-    recv_bytes = conn.recv(1024)
-    print(str(recv_bytes, encoding="utf-8"))
-    # send and receive message
-    conn.sendall(bytes("This is web server.", encoding="utf-8"))
-    recv_bytes = conn.recv(1024)
-    recv_str = str(recv_bytes, encoding="utf-8")
+def user_login(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(username=username, password=password)
+            if user:
+                if user.is_active:
+                    login(request, user)
+                    return HttpResponseRedirect(reverse('web:home'))
+                else:
+                    form = LoginForm()
+                    return render(request, 'web_server/login.html',
+                                  {'form': form, 'error': True, 'error_message': 'Your account is disabled.'})
+            else:
+                form = LoginForm()
+                return render(request, 'web_server/login.html',
+                              {'form': form, 'error': True, 'error_message': 'Invalid username/password!'})
+    else:
+        form = LoginForm()
+        return render(request, 'web_server/login.html', {'form': form})
 
-    response.write(recv_str)
-    return response
+
+@login_required
+def user_logout(request):
+    logout(request)
+    return HttpResponseRedirect(reverse(('web:home')))
+
+
+@login_required
+def show_device(request, user_id):
+    try:
+        device_list = Ruser.objects.get(pk=user_id).device.all()
+        return render(request, 'web_server/device.html', {'devices': device_list})
+    except:
+        return render(request, 'web_server/device.html', {'error': True})
+
+
+def send_message_by_socket(dev, message):
+    device = Device.objects.get(name=dev)
+    try:
+        conn = socket.socket()
+        conn.connect((device.address, device.port))
+        # conn.connect((device.address, device.port))
+        # establish connection
+        conn.sendall(bytes("M", encoding="utf-8"))
+        recv_bytes = conn.recv(1024)
+        print(str(recv_bytes, encoding="utf-8"))
+        # # send and receive message
+        # conn.sendall(bytes(message, encoding="utf-8"))
+        # recv_bytes = conn.recv(1024)
+        return str(recv_bytes, encoding="utf-8")
+    except:
+        return "Can not connect to device."
+
+@login_required
+def send_message(request, user_id):
+    if request.method == 'POST':
+        devices = request.POST.getlist('devices[]')
+        message = request.POST.get('message')
+        return_message = ""
+        # TODO validate if the user has the access to the device
+        for device in devices:
+            return_message += device + ": " + str(send_message_by_socket(device, message)) + "\n"
+
+        return_json = {'result': return_message}
+        return HttpResponse(json.dumps(return_json), content_type='application/json')
+    else:
+        try:
+            device_list = Ruser.objects.get(pk=user_id).device.all()
+            return render(request, 'web_server/message.html', {'devices': device_list})
+        except:
+            return render(request, 'web_server/message.html', {'error': True})
 
 
 # receive file from device

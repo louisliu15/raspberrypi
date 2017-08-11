@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 # Create your models here.
 class Device(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    address = models.URLField()
+    address = models.CharField(max_length=2048)
     port = models.IntegerField(null=False, blank=False)
 
     def __str__(self):

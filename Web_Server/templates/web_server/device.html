@@ -1,0 +1,31 @@
+{% extends 'web_server/base.html' %}
+{% block body-block %}
+    {% if error %}
+        <div class="alert alert-warning">You didn't bind any device yet.</div>
+    {% endif %}
+    {% if devices %}
+        <div class="row">
+            <div class="col-md-8">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>Raspberry Name</th>
+                        <th>Address</th>
+                        <th>Port</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for foo in devices %}
+                        <tr>
+                            <td>{{ foo.name }}</td>
+                            <td>{{ foo.address }}</td>
+                            <td>{{ foo.port }}</td>
+                        </tr>
+                    {% endfor %}
+{#                    {{ devices }}#}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
