@@ -21,4 +21,5 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^web/', include("Web_Server.urls", namespace='web')),
     url(r'^accounts/login/', views.user_login),
+    url(r'^', views.home),
 ]

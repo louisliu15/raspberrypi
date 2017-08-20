@@ -1,0 +1,57 @@
+{% extends 'web_server/base.html' %}
+{% block head %}
+    <script>
+        function send_file() {
+            var form = document.getElementById("myform");
+            var formData = new FormData(form);
+            {#            var params = {};#}
+            {#            params["devices"] = devices;#}
+            {#            params["message"] = message;#}
+            {#            params["csrfmiddlewaretoken"] = "{{ csrf_token }}";#}
+            $.ajax({
+                type: "POST",
+                url: "{% url 'web:file_upload' user.id %}",
+                data: formData,
+                dataType: "json",
+                processData: false,
+                contentType: false,
+                success: function (data) {
+                    alert(data.result);
+                },
+                error: function (xhr, ajaxOptions, thrownError) {
+                    alert(xhr.status);
+                    alert(thrownError);
+                }
+            });
+        }
+    </script>
+{% endblock %}
+{% block body-block %}
+    {% if error %}
+        <div class="alert alert-warning">You didn't bind any device yet.</div>
+    {% endif %}
+    {% if devices %}
+        <div class="row">
+            <div class="col-sm-8 col-md-8 col-lg-8">
+                <form id="myform" method="post" action="" enctype="multipart/form-data">
+                    {#                <form id="myform" method="post" action="{% url 'web:file_upload' user.id %}" enctype="multipart/form-data">#}
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Devices:</label>
+                        <select id="devices" name="devices" class="form-control">
+                            {% for device in devices %}
+                                <option>{{ device.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="file">Select File</label>
+                        <input id="file" name="file" type="file">
+                    </div>
+                    {#                    <button class="btn btn-lg btn-primary" type="submit">Upload</button>#}
+                    <button class="btn btn-lg btn-primary" type="button" onclick="send_file()">Upload</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

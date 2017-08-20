@@ -1,13 +1,14 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.urls import reverse
-import socket, os, json
+import json
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 
 from .forms import LoginForm, RegisterForm
 from .models import Ruser, Device
+from .functions import send_message_by_socket, recv_file, send_file ,recv_file_list
 
 
 # Create your views here.
@@ -71,32 +72,15 @@ def show_device(request, user_id):
         return render(request, 'web_server/device.html', {'error': True})
 
 
-def send_message_by_socket(dev, message):
-    device = Device.objects.get(name=dev)
-    try:
-        conn = socket.socket()
-        conn.connect((device.address, device.port))
-        # conn.connect((device.address, device.port))
-        # establish connection
-        conn.sendall(bytes("M", encoding="utf-8"))
-        recv_bytes = conn.recv(1024)
-        print(str(recv_bytes, encoding="utf-8"))
-        # # send and receive message
-        # conn.sendall(bytes(message, encoding="utf-8"))
-        # recv_bytes = conn.recv(1024)
-        return str(recv_bytes, encoding="utf-8")
-    except:
-        return "Can not connect to device."
-
 @login_required
 def send_message(request, user_id):
     if request.method == 'POST':
-        devices = request.POST.getlist('devices[]')
+        dev_names = request.POST.getlist('devices[]')
         message = request.POST.get('message')
         return_message = ""
         # TODO validate if the user has the access to the device
-        for device in devices:
-            return_message += device + ": " + str(send_message_by_socket(device, message)) + "\n"
+        for dev_name in dev_names:
+            return_message += dev_name + ": " + str(send_message_by_socket(dev_name, message)) + "\n"
 
         return_json = {'result': return_message}
         return HttpResponse(json.dumps(return_json), content_type='application/json')
@@ -108,61 +92,64 @@ def send_message(request, user_id):
             return render(request, 'web_server/message.html', {'error': True})
 
 
-# receive file from device
-def recv_file(request):
-    response = HttpResponse()
-    conn = socket.socket()
-    conn.connect(("10.204.46.92", 8000))
-    conn.sendall(bytes("D", encoding="utf-8"))
+@login_required
+def file_upload(request, user_id):
+    if request.method == 'POST':
+        dev_name = request.POST.get('devices')
+        file_name = request.FILES.get('file')
 
-    # get file name and file size from remote host
-    recv_bytes = conn.recv(1024)
-    file_info = str(recv_bytes, encoding="utf-8")
+        # TODO validate if the user has the access to the device
+        return_message = send_file(dev_name, file_name)
 
-    file = file_info.split('|')
-    file_name = file[0]
-    file_size = int(file[1])
-
-    conn.sendall(bytes("start transfer", encoding="utf-8"))
-    has_size = 0
-    f = open(file_name, "wb")
-    while True:
-        if file_size == has_size:
-            break
-        data = conn.recv(1024)
-        f.write(data)
-        has_size += len(data)
-
-    f.close()
-    conn.close()
-    response.write("File transfer succeed.")
-    return response
+        return_json = {'result': return_message}
+        return HttpResponse(json.dumps(return_json), content_type='application/json')
+    else:
+        try:
+            device_list = Ruser.objects.get(pk=user_id).device.all()
+            return render(request, 'web_server/file_upload.html', {'devices': device_list})
+        except Exception as e:
+            print(str(e))
+            return render(request, 'web_server/file_upload.html', {'error': True})
 
 
-def send_file(request):
-    response = HttpResponse()
-    conn = socket.socket()
-    conn.connect(("10.204.46.92", 8000))
-    conn.sendall(bytes("U", encoding="utf-8"))
-    # wait for device answer
-    recv_bytes = conn.recv(1024)
-    print(str(recv_bytes, encoding="utf-8"))
-    # send file name
-    conn.sendall(bytes("test1.png", encoding="utf-8"))
-    recv_bytes = conn.recv(1024)
-    print(str(recv_bytes, encoding="utf-8"))
-    # send file size
-    fsize = os.stat("test1.png").st_size
-    conn.sendall(bytes(str(fsize), encoding="utf-8"))
-    recv_bytes = conn.recv(1024)
-    print(str(recv_bytes, encoding="utf-8"))
+@login_required
+def file_download(request, user_id):
+    if request.method == 'POST':
+        dev_name = request.POST.get('devices')
+        file_name = request.POST.get('file')
+        if dev_name == None or file_name == None :
+            return_json = {'error': True, 'error_msg': "Please select device or file name."}
+            return HttpResponse(json.dumps(return_json), content_type='application/json')
 
-    # start file transfer
-    with open("test1.png", "rb") as f:
-        for line in f:
-            conn.sendall(line)
+        # TODO validate if the user has the access to the device
+        # return_data is a boolean value, indecates if the file download is succeed or not
+        return_data = recv_file(dev_name, file_name)
 
-    f.close()
-    conn.close()
-    response.write("File transfer succeed.")
-    return response
+        return_json = {'result': return_data}
+        return HttpResponse(json.dumps(return_json), content_type='application/json')
+    else:
+        try:
+            device_list = Ruser.objects.get(pk=user_id).device.all()
+            file_list = recv_file_list(device_list[0].name)
+            return render(request, 'web_server/file_download.html', {'devices': device_list, "file_list": file_list})
+        except Exception as e:
+            print(e)
+            return render(request, 'web_server/file_download.html', {'error': True, 'error_msg': "You didn't bind any device yet."})
+
+@login_required
+def get_file_list(request, user_id):
+    if request.method == 'POST':
+        dev_name = request.POST.get('devices')
+
+        # TODO validate if the user has the access to the device
+
+        return_message = recv_file_list(dev_name)
+        return_json = {'result': return_message}
+        return HttpResponse(json.dumps(return_json), content_type='application/json')
+    else:
+        try:
+            device_list = Ruser.objects.get(pk=user_id).device.all()
+            return render(request, 'web_server/file_upload.html', {'devices': device_list})
+        except Exception as e:
+            print(str(e))
+            return render(request, 'web_server/file_upload.html', {'error': True})

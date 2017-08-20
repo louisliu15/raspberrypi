@@ -3,6 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
           integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
@@ -22,21 +23,27 @@
 <nav class="navbar navbar-inverse">
     <div class="container">
         <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
             <a class="navbar-brand" href="#">Raspberry Control Center</a>
         </div>
-        <div class="navbar-collapse collapse">
+        <div id="navbar" class="navbar-collapse collapse" aria-expanded="true">
             <ul class="nav navbar-nav">
                 <li name="home"><a name="home" href="{% url 'web:home' %}">Home</a></li>
                 {% if request.user.is_authenticated %}
                     <li name="device"><a class="active" href="{% url 'web:device' user.id %}">Device</a></li>
-                    <li name="message"><a href="{% url 'web:sendMsg' user.id %}">Message</a></li>
-                    <li name="upload"><a href="#">Upload</a></li>
-                    <li name="download"><a href="#">Download</a></li>
+                    <li name="message"><a href="{% url 'web:send_msg' user.id %}">Message</a></li>
+                    <li name="upload"><a href="{% url 'web:file_upload' user.id %}">Upload</a></li>
+                    <li name="download"><a href="{% url 'web:file_download' user.id %}">Download</a></li>
                 {% endif %}
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 {% if request.user.is_authenticated %}
-                    <li><a class="navbar-brand">Welcome {{ request.user.username }}</a></li>
+                    <li class="hidden-sm hidden-xs"><a class="navbar-brand">Welcome {{ request.user.username }}</a></li>
                     <li><a name="logout" href="{% url 'web:logout' %}">Logout</a></li>
                 {% else %}
                     <li><a href="{% url 'web:login' %}">Login</a></li>
@@ -48,8 +55,10 @@
 </nav>
 <div class="container">{% block body-block %}{% endblock %}</div>
 <script>
-    var path = "{{ request.path }}";
-    var name = path.split('/')[2];
+    var path = "{{ request.path }}".split('/');
+    var name = path[2];
+    if (name == "file")
+        name = path[3];
     $("li[name='" + name + "']").attr("class", "active");
 </script>
 </body>

@@ -1,0 +1,86 @@
+{% extends 'web_server/base.html' %}
+{% load staticfiles %}
+{% block head %}
+    <script>
+        function get_file_list() {
+            var params = {};
+            params["devices"] = $("#device").val();
+            params["csrfmiddlewaretoken"] = "{{ csrf_token }}";
+            $.ajax({
+                type: "POST",
+                url: "{% url 'web:file_list' user.id %}",
+                data: params,
+                dataType: "json",
+                success: function (data) {
+                    if (data.result == false) {
+                        alert("Can not connect to the device or don't have any file available.")
+                        $("#file").html("<option>None</option>");
+                    } else {
+                        var html_text = "";
+                        for (fn in data.result)
+                            html_text += "<option>" + data.result[fn] + "</option>";
+                        $("#file").html(html_text);
+                    }
+                }
+            });
+        }
+
+        function recv_file() {
+            var params = {};
+            params["devices"] = $("#device").val();
+            params["file"] = $("#file").val();
+            if (params["file"] == "None") {
+                alert("Please select a file");
+                return;
+            }
+            params["csrfmiddlewaretoken"] = "{{ csrf_token }}";
+            $.ajax({
+                type: "POST",
+                url: "{% url 'web:file_download' user.id %}",
+                data: params,
+                dataType: "json",
+                success: function (data) {
+                    if (data.result == true) {
+                        url = "{% static 'download/' %}" + $("#file").val();
+                        location.href = url;
+                    } else
+                        alert("Can not connect to device or file doesn't exist.")
+                }
+            });
+        }
+    </script>
+{% endblock %}
+{% block body-block %}
+    {% if error %}
+        <div id="error_msg" class="alert alert-warning">{{ error_msg }}</div>
+    {% endif %}
+    {% if devices %}
+        <div class="row">
+        <div class="col-sm-8 col-md-8 col-lg-8">
+            <form>
+                <div class="form-group">
+                    <label>Devices:</label>
+                    <select id="device" class="form-control" onchange="get_file_list()">
+                        {% for device in devices %}
+                            <option>{{ device.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Remote file list</label>
+                    <select id="file" class="form-control">
+                        {% if file_list %}
+                            {% for file in file_list %}
+                                <option>{{ file }}</option>
+                            {% endfor %}
+                        {% else %}
+                            <option>None</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <button class="btn btn-lg btn-primary" type="button" onclick="recv_file()">Download</button>
+                {#                <a href="javascript:void(0);" onclick="recv_file()" target="_blank">点击下载</a>#}
+            </form>
+        </div>
+    {% endif %}
+{% endblock %}
